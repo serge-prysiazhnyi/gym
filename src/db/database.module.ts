@@ -1,22 +1,21 @@
 import { Module } from '@nestjs/common';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-import * as schema from './schema';
-
-export const DB_CLIENT = Symbol('DB_CLIENT');
-export type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  providers: [
-    {
-      provide: DB_CLIENT,
-      useFactory: () =>
-        drizzle(
-          new Pool({ connectionString: process.env.DATABASE_URL, max: 10 }),
-          { schema },
-        ),
-    },
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+
+      autoLoadEntities: true, // picks up entities registered by feature modules
+      synchronize: false, // NEVER true — you use migrations
+      logging: ['query', 'error'], // <-- shows the SQL, for your learning goal
+
+      // THE POOL — this is your tunable knob under load
+      extra: {
+        max: 10, // pool size
+      },
+    }),
   ],
-  exports: [DB_CLIENT],
 })
 export class DatabaseModule {}

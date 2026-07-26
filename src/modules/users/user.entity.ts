@@ -20,7 +20,7 @@ export class User {
   @Column({ name: 'password_hash' })
   passwordHash!: string;
 
-  @Column({ length: 255, nullable: true, default: null })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   name!: string | null;
 
   @Column({ type: 'enum', enum: ['user', 'admin'], default: 'user' })

@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-
-      autoLoadEntities: true, // picks up entities registered by feature modules
-      synchronize: false, // NEVER true — you use migrations
-      logging: ['query', 'error'], // <-- shows the SQL, for your learning goal
-
-      // THE POOL — this is your tunable knob under load
-      extra: {
-        max: 10, // pool size
-      },
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres',
+        url: config.get<string>('DATABASE_URL'),
+        autoLoadEntities: true,
+        synchronize: false,
+        logging: ['query', 'error'],
+        extra: { max: 10 },
+      }),
     }),
   ],
 })

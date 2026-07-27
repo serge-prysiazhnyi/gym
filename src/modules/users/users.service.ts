@@ -16,6 +16,21 @@ export class UsersService {
     return this.toDto(user);
   }
 
+  async findAll(page: number, limit: number) {
+    const [data, total] = await this.users.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      data: data.map((user) => this.toDto(user)),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   private toDto(user: User): UserResponseDto {
     return {
       id: user.id,

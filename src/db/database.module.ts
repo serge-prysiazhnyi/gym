@@ -13,7 +13,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         autoLoadEntities: true,
         synchronize: false,
         logging: ['query', 'error'],
-        extra: { max: 10 },
+        extra: { max: 20 },
       }),
     }),
   ],

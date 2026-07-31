@@ -7,13 +7,15 @@ const users = new SharedArray('users', () => JSON.parse(open('./tokens.json')));
 
 export const options = {
   stages: [
-    { duration: '30s', target: 100 },
-    { duration: '1m', target: 100 },
-    { duration: '30s', target: 600 },
-    { duration: '1m', target: 300 },
-    { duration: '30s', target: 3600 },
-    { duration: '1m', target: 1600 },
-    { duration: '30s', target: 0 },
+    // { duration: '30s', target: 200 },
+    // { duration: '1m', target: 400 }, // steady — watch here
+    // { duration: '15s', target: 800 },
+    // { duration: '30s', target: 200 },
+    // { duration: '10s', target: 0 },
+
+    { duration: '30s', target: 400 },
+    { duration: '15s', target: 3000 },
+    { duration: '10s', target: 0 },
   ],
   thresholds: {
     http_req_duration: ['p(95)<500'], // 95% of requests under 500ms
@@ -33,5 +35,5 @@ export default function () {
 
   check(res, { 'status is 200': (r) => r.status === 200 });
 
-  sleep(1); // "think time" — real users pause between requests
+  // sleep(1); // "think time" — real users pause between requests
 }

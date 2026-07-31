@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 1s # scrape often, so you see load-test detail
+
+scrape_configs:
+  - job_name: 'gym-api'
+    static_configs:
+      - targets: ['host.docker.internal:3000']

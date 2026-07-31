@@ -16,8 +16,9 @@ export class MetricsController {
   @Get()
   @Header('Content-Type', 'text/plain')
   async scrape(): Promise<string> {
-    // Read live pool stats from the underlying pg Pool
-    const pool = (this.dataSource.driver as any).master;
+    const driver = this.dataSource.driver as any;
+
+    const pool = driver.master;
     if (pool) {
       this.metrics.poolTotal.set(pool.totalCount ?? 0);
       this.metrics.poolIdle.set(pool.idleCount ?? 0);

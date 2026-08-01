@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth';
 import { WorkoutsModule } from './modules/workouts';
 import { ExercisesModule } from './modules/exercises';
 import { MetricsModule } from './modules/metrics';
+import { RedisModule } from './modules/redis';
 
 @Module({
   imports: [
@@ -24,6 +25,8 @@ import { MetricsModule } from './modules/metrics';
         POSTGRES_USER: Joi.string().required(),
         POSTGRES_PASSWORD: Joi.string().required(),
         POSTGRES_DB: Joi.string().required(),
+
+        REDIS_URL: Joi.string().uri().required(),
       }),
       validationOptions: {
         abortEarly: false, // report ALL bad vars at once, not just the first
@@ -35,6 +38,7 @@ import { MetricsModule } from './modules/metrics';
     WorkoutsModule,
     ExercisesModule,
     MetricsModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

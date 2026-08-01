@@ -11,6 +11,7 @@ import { WorkoutsModule } from './modules/workouts';
 import { ExercisesModule } from './modules/exercises';
 import { MetricsModule } from './modules/metrics';
 import { RedisModule } from './modules/redis';
+import { MuscleGroupsModule } from './modules/muscle-groups';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RedisModule } from './modules/redis';
     ExercisesModule,
     MetricsModule,
     RedisModule,
+    MuscleGroupsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
-import { Exercise } from './exercise.entity';
+import type { Exercise } from '../exercises';
 
 @Entity('muscle_groups')
 export class MuscleGroup {
@@ -9,6 +9,8 @@ export class MuscleGroup {
   @Column({ length: 64, unique: true })
   name!: string;
 
-  @ManyToMany(() => Exercise, (e) => e.muscleGroups)
+  // target given as a string (not `() => Exercise`) to avoid a runtime
+  // circular import between the muscle-groups and exercises modules
+  @ManyToMany('Exercise', (e: Exercise) => e.muscleGroups)
   exercises!: Exercise[];
 }

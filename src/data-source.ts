@@ -4,7 +4,7 @@ import { User } from './modules/users/user.entity';
 import { Workout } from './modules/workouts/workout.entity';
 import { WorkoutSet } from './modules/workouts/workout-set.entity';
 import { Exercise } from './modules/exercises/exercise.entity';
-import { MuscleGroup } from './modules/exercises/muscle-group.entity';
+import { MuscleGroup } from './modules/muscle-groups/muscle-group.entity';
 
 export default new DataSource({
   type: 'postgres',

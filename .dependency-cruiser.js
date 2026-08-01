@@ -10,6 +10,9 @@ module.exports = {
       from: {},
       to: {
         circular: true,
+        // type-only imports are erased at compile time, so they can't cause a
+        // runtime circular require — only flag cycles formed by real value imports
+        dependencyTypesNot: ['type-only'],
       },
     },
     {

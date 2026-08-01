@@ -21,7 +21,8 @@ export class MuscleGroupsService {
   async findAll(): Promise<MuscleGroup[]> {
     const cached = await this.redis.get(CACHE_KEY);
 
-    if (cached) return JSON.parse(cached) as MuscleGroup[];
+    if (!!cached && cached?.length > 0)
+      return JSON.parse(cached) as MuscleGroup[];
 
     const groups = await this.repo.find({ order: { name: 'ASC' } });
 

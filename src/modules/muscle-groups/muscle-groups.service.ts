@@ -30,7 +30,7 @@ export class MuscleGroupsService {
     return groups;
   }
 
-  async findById(ids: string[]): Promise<MuscleGroup[]> {
+  async findByIds(ids: string[]): Promise<MuscleGroup[]> {
     return await this.repo.findBy({ id: In(ids) });
   }
 

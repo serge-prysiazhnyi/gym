@@ -15,6 +15,21 @@ export class Exercise {
   @Column({ length: 128, unique: true })
   name!: string;
 
+  /**
+   * Longer description of how to perform the exercise. Optional.
+   */
+  @Column({ type: 'text', nullable: true })
+  description!: string | null;
+
+  /**
+   * URL of an illustrative image. Optional.
+   *
+   * Stores a URL rather than the image itself — binary data belongs in object
+   * storage (S3 or similar), not in Postgres.
+   */
+  @Column({ type: 'varchar', length: 512, name: 'image_url', nullable: true })
+  imageUrl!: string | null;
+
   // target given as a string (not `() => MuscleGroup`) to avoid a runtime
   // circular import between the exercises and muscle-groups modules
   @ManyToMany('MuscleGroup', (m: MuscleGroup) => m.exercises)

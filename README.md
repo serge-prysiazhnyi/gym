@@ -84,5 +84,10 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 ### SQL test
 
+```
 docker compose exec postgres psql -U gym -d gym \
 -c "INSERT INTO users (email, role) VALUES ('bob@test.com', 'user') RETURNING id;"
+```
+
+Check table:
+`docker compose exec postgres psql -U gym -d gym -c "\d exercises"`

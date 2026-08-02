@@ -33,6 +33,9 @@ export class Workout {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
+  @Column({ name: 'duration_seconds', type: 'int', nullable: true })
+  durationSeconds!: number | null;
+
   @OneToMany(() => WorkoutSet, (s) => s.workout)
   sets!: WorkoutSet[];
 }

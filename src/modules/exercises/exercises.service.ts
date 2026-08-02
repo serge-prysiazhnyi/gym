@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { Exercise } from './exercise.entity';
 import { MuscleGroupsService } from '../muscle-groups';
@@ -67,5 +67,27 @@ export class ExercisesService {
     });
 
     return this.repo.save(exercise);
+  }
+
+  /**
+   * Check whether an exercise exists.
+   *
+   * Public entry point for other modules (notably `WorkoutsService`) that need
+   * to validate an exerciseId without loading the full entity or its relations.
+   */
+  async exists(id: string): Promise<boolean> {
+    return this.repo.existsBy({ id });
+  }
+
+  /**
+   * Return which of the given exercise ids actually exist.
+   * Used to validate a batch of ids in one query rather than N queries.
+   */
+  async findExistingIds(ids: string[]): Promise<string[]> {
+    const rows = await this.repo.find({
+      where: { id: In(ids) },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
   }
 }

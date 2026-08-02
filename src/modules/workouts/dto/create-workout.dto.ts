@@ -54,3 +54,42 @@ export class CreateWorkoutDto {
   @Type(() => CreateWorkoutSetDto) // tells class-transformer what class to build
   sets!: CreateWorkoutSetDto[];
 }
+
+export class UpdateWorkoutDto {
+  @IsOptional()
+  @IsISO8601()
+  performedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  rawText?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  durationSeconds?: number;
+}
+
+export class UpdateWorkoutSetDto {
+  @IsOptional()
+  @IsUUID()
+  exerciseId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  setNumber?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  reps?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1000)
+  weightKg?: number;
+}

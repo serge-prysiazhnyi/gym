@@ -24,6 +24,8 @@
     "migration:revert": "pnpm typeorm migration:revert",
     "seed:users": "pnpm exec ts-node scripts/seed-users.ts",
     "seed:muscle-groups": "pnpm exec ts-node scripts/seed-muscle-groups.ts",
+    "seed:exercises": "ts-node scripts/seed-exercises.ts",
+    "seed:reference": "pnpm seed:muscle-groups && pnpm seed:exercises",
     "tokens:mint": "pnpm exec ts-node scripts/mint-tokens.ts",
     "k6:test": "k6 run scripts/loadtest.js"
   },

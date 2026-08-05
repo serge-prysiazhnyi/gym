@@ -83,12 +83,10 @@ export class WorkoutsService {
   async findAllForUser(userId: string, page = 1, limit = 20) {
     const [data, total] = await this.workouts.findAndCount({
       where: { userId },
-      relations: { sets: { exercise: true } },
       skip: (page - 1) * limit,
       take: limit,
       order: { performedAt: 'DESC' },
     });
-
     return { data, total, page, totalPages: Math.ceil(total / limit) };
   }
 

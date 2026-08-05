@@ -7,6 +7,7 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  VirtualColumn,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { WorkoutSet } from './workout-set.entity';
@@ -35,6 +36,12 @@ export class Workout {
 
   @Column({ name: 'duration_seconds', type: 'int', nullable: true })
   durationSeconds!: number | null;
+
+  @VirtualColumn({
+    query: (alias) =>
+      `SELECT COUNT(*) FROM workout_sets WHERE workout_id = ${alias}.id`,
+  })
+  setCount!: number;
 
   @OneToMany(() => WorkoutSet, (s) => s.workout)
   sets!: WorkoutSet[];

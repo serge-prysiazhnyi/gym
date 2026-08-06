@@ -12,14 +12,18 @@ import {
   UpdateWorkoutDto,
   CreateWorkoutSetDto,
   UpdateWorkoutSetDto,
-} from './dto/create-workout.dto';
+} from './dto/workout.dto';
 import { ExercisesService } from '../exercises';
+import { InjectQueue } from '@nestjs/bullmq';
+import { WORKOUT_PARSE_QUEUE } from '../queue';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class WorkoutsService {
   constructor(
     @InjectRepository(Workout) private readonly workouts: Repository<Workout>,
     @InjectRepository(WorkoutSet) private readonly sets: Repository<WorkoutSet>,
+    @InjectQueue(WORKOUT_PARSE_QUEUE) private readonly parseQueue: Queue,
     private readonly exercises: ExercisesService,
     private readonly dataSource: DataSource,
   ) {}
@@ -199,5 +203,24 @@ export class WorkoutsService {
 
     const result = await this.sets.delete({ id: setId, workoutId });
     if (result.affected === 0) throw new NotFoundException('Set not found');
+  }
+
+  async requestParse(userId: string, rawText: string) {
+    if (!rawText.trim()) {
+      throw new BadRequestException('Invalid workout text');
+    }
+
+    const job = await this.parseQueue.add(
+      'parse-workout',
+      { userId, rawText },
+      {
+        attempts: 3, // retry failures
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: 100, // keep last 100
+        removeOnFail: 500,
+      },
+    );
+
+    return { jobId: job.id, status: 'queued' };
   }
 }

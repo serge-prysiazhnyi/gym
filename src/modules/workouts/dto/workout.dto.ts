@@ -93,3 +93,8 @@ export class UpdateWorkoutSetDto {
   @Max(1000)
   weightKg?: number;
 }
+
+export class ParseWorkoutDto {
+  @IsString()
+  rawText!: string;
+}

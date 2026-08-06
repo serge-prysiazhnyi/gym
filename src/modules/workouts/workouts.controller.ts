@@ -18,7 +18,8 @@ import {
   UpdateWorkoutDto,
   CreateWorkoutSetDto,
   UpdateWorkoutSetDto,
-} from './dto/create-workout.dto';
+  ParseWorkoutDto,
+} from './dto/workout.dto';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JwtAuthGuard, CurrentUser, type AuthenticatedUser } from '../auth';
 
@@ -41,6 +42,12 @@ export class WorkoutsController {
     @Query() query: PaginationQueryDto,
   ) {
     return this.workouts.findAllForUser(user.userId, query.page, query.limit);
+  }
+
+  @Post('parse')
+  @HttpCode(HttpStatus.ACCEPTED)
+  parse(@CurrentUser() user: AuthenticatedUser, @Body() dto: ParseWorkoutDto) {
+    return this.workouts.requestParse(user.userId, dto.rawText);
   }
 
   @Get(':id')

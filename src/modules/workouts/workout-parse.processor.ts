@@ -1,0 +1,57 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+
+import { Inject, Logger } from '@nestjs/common';
+import { Job } from 'bullmq';
+import { WORKOUT_PARSE_QUEUE } from '../queue/';
+import { LLM_SERVICE } from '../llm';
+import type { LlmService } from '../llm';
+import { ExercisesService } from '../exercises';
+import { WorkoutsService } from './workouts.service';
+import { CreateWorkoutSetDto } from './dto/workout.dto';
+
+interface ParseJobData {
+  userId: string;
+  rawText: string;
+}
+
+@Processor(WORKOUT_PARSE_QUEUE, { concurrency: 5 })
+export class WorkoutParseProcessor extends WorkerHost {
+  private readonly logger = new Logger(WorkoutParseProcessor.name);
+
+  constructor(
+    @Inject(LLM_SERVICE) private readonly llm: LlmService,
+    private readonly workouts: WorkoutsService,
+    private readonly exercises: ExercisesService,
+  ) {
+    super();
+  }
+
+  async process(job: Job<ParseJobData>): Promise<{ workoutId: string }> {
+    const { userId, rawText } = job.data;
+    this.logger.log(`Parsing job ${job.id}`);
+
+    const parsed = await this.llm.parseWorkout(rawText);
+
+    // Resolve names → ids
+    const sets: CreateWorkoutSetDto[] = [];
+    for (const s of parsed.sets) {
+      const exercise = await this.exercises.findByName(s.exerciseName);
+
+      if (!exercise) {
+        throw new Error(`Unknown exercise: "${s.exerciseName}"`);
+      }
+
+      sets.push({
+        exerciseId: exercise.id,
+        setNumber: s.setNumber,
+        reps: s.reps,
+        weightKg: s.weightKg ?? undefined,
+      });
+    }
+
+    const workout = await this.workouts.create(userId, { rawText, sets });
+    this.logger.log(`Job ${job.id}: created workout ${workout.id}`);
+
+    return { workoutId: workout.id };
+  }
+}

@@ -90,4 +90,17 @@ export class ExercisesService {
     });
     return rows.map((r) => r.id);
   }
+
+  /**
+   * Find an exercise by name, case-insensitively.
+   *
+   * Used when resolving free-text exercise names (e.g. from LLM output) to
+   * catalogue entries. Returns null when no match exists.
+   */
+  async findByName(name: string): Promise<Exercise | null> {
+    return this.repo
+      .createQueryBuilder('s')
+      .where('LOWER(e.name) = LOWER(:name)', { name: name.trim() })
+      .getOne();
+  }
 }

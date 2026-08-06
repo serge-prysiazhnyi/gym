@@ -7,7 +7,7 @@ import {
   Index,
 } from 'typeorm';
 import { Workout } from './workout.entity';
-import { Exercise } from '../exercises/exercise.entity';
+import { Exercise } from '../exercises';
 
 @Entity('workout_sets')
 @Index('workout_sets_workout_idx', ['workoutId'])

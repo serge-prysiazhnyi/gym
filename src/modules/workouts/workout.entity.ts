@@ -9,7 +9,7 @@ import {
   Index,
   VirtualColumn,
 } from 'typeorm';
-import { User } from '../users/user.entity';
+import type { User } from '../users';
 import { WorkoutSet } from './workout-set.entity';
 
 @Entity('workouts')
@@ -21,7 +21,9 @@ export class Workout {
   @Column({ name: 'user_id' })
   userId!: string;
 
-  @ManyToOne(() => User, (u) => u.workouts, { onDelete: 'CASCADE' })
+  // target given as a string (not `() => User`) to avoid a runtime
+  // circular import between the workouts and users modules
+  @ManyToOne('User', (u: User) => u.workouts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: User;
 

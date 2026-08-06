@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Workout } from '../workouts/workout.entity';
+import type { Workout } from '../workouts';
 
 export type UserRole = 'user' | 'admin';
 
@@ -29,6 +29,8 @@ export class User {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @OneToMany(() => Workout, (w) => w.user)
+  // target given as a string (not `() => Workout`) to avoid a runtime
+  // circular import between the users and workouts modules
+  @OneToMany('Workout', (w: Workout) => w.user)
   workouts!: Workout[];
 }

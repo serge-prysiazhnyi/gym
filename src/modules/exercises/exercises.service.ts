@@ -99,7 +99,7 @@ export class ExercisesService {
    */
   async findByName(name: string): Promise<Exercise | null> {
     return this.repo
-      .createQueryBuilder('s')
+      .createQueryBuilder('e')
       .where('LOWER(e.name) = LOWER(:name)', { name: name.trim() })
       .getOne();
   }

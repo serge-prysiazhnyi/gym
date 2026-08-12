@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Workout } from './workout.entity';
 import { WorkoutSet } from './workout-set.entity';
 import {
@@ -16,7 +16,7 @@ import {
 import { ExercisesService } from '../exercises';
 import { InjectQueue } from '@nestjs/bullmq';
 import { WORKOUT_PARSE_QUEUE } from '../queue';
-import { Queue } from 'bullmq';
+import { Queue, randomUUID } from 'bullmq';
 
 @Injectable()
 export class WorkoutsService {
@@ -48,7 +48,11 @@ export class WorkoutsService {
     return workout;
   }
 
-  async create(userId: string, dto: CreateWorkoutDto): Promise<Workout> {
+  async create(
+    userId: string,
+    dto: CreateWorkoutDto,
+    idempotencyKey?: string,
+  ): Promise<Workout> {
     // Validate exercise ids BEFORE opening the transaction
     const ids = [...new Set(dto.sets.map((s) => s.exerciseId))];
     const existing = await this.exercises.findExistingIds(ids);
@@ -60,28 +64,44 @@ export class WorkoutsService {
     }
 
     // Transaction: workout + all its sets succeed together, or not at all
-    return this.dataSource.transaction(async (manager) => {
-      const workout = manager.create(Workout, {
-        userId,
-        performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
-        rawText: dto.rawText ?? null,
-        durationSeconds: dto.durationSeconds ?? null,
+    try {
+      return this.dataSource.transaction(async (manager) => {
+        const workout = manager.create(Workout, {
+          userId,
+          performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
+          rawText: dto.rawText ?? null,
+          durationSeconds: dto.durationSeconds ?? null,
+          idempotencyKey: idempotencyKey ?? null,
+        });
+        await manager.save(workout);
+
+        const sets = dto.sets.map((s) =>
+          manager.create(WorkoutSet, {
+            workoutId: workout.id,
+            exerciseId: s.exerciseId,
+            setNumber: s.setNumber,
+            reps: s.reps,
+            weightKg: s.weightKg != null ? String(s.weightKg) : null,
+          }),
+        );
+        await manager.insert(WorkoutSet, sets); // bulk insert — one statement
+
+        return { ...workout, sets };
       });
-      await manager.save(workout);
+    } catch (err) {
+      // 23505 = unique_violation in Postgres
+      if (
+        err instanceof QueryFailedError &&
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (err as any)?.code === '23505' &&
+        idempotencyKey
+      ) {
+        const existing = await this.findByIdempotencyKey(idempotencyKey);
+        if (existing) return existing;
+      }
 
-      const sets = dto.sets.map((s) =>
-        manager.create(WorkoutSet, {
-          workoutId: workout.id,
-          exerciseId: s.exerciseId,
-          setNumber: s.setNumber,
-          reps: s.reps,
-          eightKg: s.weightKg != null ? String(s.weightKg) : null,
-        }),
-      );
-      await manager.insert(WorkoutSet, sets); // bulk insert — one statement
-
-      return { ...workout, sets };
-    });
+      throw err;
+    }
   }
 
   async findAllForUser(userId: string, page = 1, limit = 20) {
@@ -210,9 +230,11 @@ export class WorkoutsService {
       throw new BadRequestException('Invalid workout text');
     }
 
+    const idempotencyKey = randomUUID();
+
     const job = await this.parseQueue.add(
       'parse-workout',
-      { userId, rawText },
+      { userId, rawText, idempotencyKey },
       {
         attempts: 3, // retry failures
         backoff: { type: 'exponential', delay: 2000 },
@@ -222,5 +244,19 @@ export class WorkoutsService {
     );
 
     return { jobId: job.id, status: 'queued' };
+  }
+
+  /**
+   * Find a workout by its idempotency key.
+   *
+   * Used by the parse processor to detect that a job has already been handled,
+   * so retries return the existing workout instead of creating a duplicate.
+   *
+   * Note: not scoped by user. The key is server-generated and unguessable, and
+   * this is only called from the worker with a key it already holds — so there
+   * is no path for one user to look up another's workout through it.
+   */
+  async findByIdempotencyKey(key: string): Promise<Workout | null> {
+    return await this.workouts.findOne({ where: { idempotencyKey: key } });
   }
 }

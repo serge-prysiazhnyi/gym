@@ -1,4 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { UnrecoverableError } from 'bullmq';
 
 import { Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
@@ -12,6 +13,7 @@ import { CreateWorkoutSetDto } from './dto/workout.dto';
 interface ParseJobData {
   userId: string;
   rawText: string;
+  idempotencyKey: string;
 }
 
 @Processor(WORKOUT_PARSE_QUEUE, { concurrency: 5 })
@@ -27,8 +29,14 @@ export class WorkoutParseProcessor extends WorkerHost {
   }
 
   async process(job: Job<ParseJobData>): Promise<{ workoutId: string }> {
-    const { userId, rawText } = job.data;
+    const { userId, rawText, idempotencyKey } = job.data;
     this.logger.log(`Parsing job ${job.id}`);
+
+    const existing = await this.workouts.findByIdempotencyKey(idempotencyKey);
+    if (existing) {
+      this.logger.log(`Job ${job.id}: already processed, skipping`);
+      return { workoutId: existing.id };
+    }
 
     const parsed = await this.llm.parseWorkout(rawText);
 
@@ -38,7 +46,7 @@ export class WorkoutParseProcessor extends WorkerHost {
       const exercise = await this.exercises.findByName(s.exerciseName);
 
       if (!exercise) {
-        throw new Error(`Unknown exercise: "${s.exerciseName}"`);
+        throw new UnrecoverableError(`Unknown exercise: "${s.exerciseName}"`);
       }
 
       sets.push({
@@ -49,8 +57,12 @@ export class WorkoutParseProcessor extends WorkerHost {
       });
     }
 
-    const workout = await this.workouts.create(userId, { rawText, sets });
-    this.logger.log(`Job ${job.id}: created workout ${workout.id}`);
+    const workout = await this.workouts.create(
+      userId,
+      { rawText, sets },
+      idempotencyKey,
+    );
+    this.logger.log(`Job ${job.id}: ✨ created workout ✨ ${workout.id}`);
 
     return { workoutId: workout.id };
   }

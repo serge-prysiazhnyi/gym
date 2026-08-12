@@ -18,6 +18,15 @@ export class Workout {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Column({
+    name: 'idempotency_key',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+    unique: true,
+  })
+  idempotencyKey!: string | null;
+
   @Column({ name: 'user_id' })
   userId!: string;
 

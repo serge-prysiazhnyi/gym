@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { UnrecoverableError } from 'bullmq';
 
 import { Inject, Logger } from '@nestjs/common';
@@ -16,7 +16,9 @@ interface ParseJobData {
   idempotencyKey: string;
 }
 
-@Processor(WORKOUT_PARSE_QUEUE, { concurrency: 5 })
+const CONCURRENCY_NUMBER = 50;
+
+@Processor(WORKOUT_PARSE_QUEUE, { concurrency: CONCURRENCY_NUMBER })
 export class WorkoutParseProcessor extends WorkerHost {
   private readonly logger = new Logger(WorkoutParseProcessor.name);
 
@@ -65,5 +67,16 @@ export class WorkoutParseProcessor extends WorkerHost {
     this.logger.log(`Job ${job.id}: ✨ created workout ✨ ${workout.id}`);
 
     return { workoutId: workout.id };
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<ParseJobData>, err: Error) {
+    const isFinal = job.attemptsMade >= (job.opts.attempts ?? 1);
+
+    this.logger.warn(
+      `❌ Job ${job.id} failed (attempt ${job.attemptsMade}/${job.opts.attempts})` +
+        `${isFinal ? ' — GIVING UP' : ' — will retry'}: ${err.message}\n` +
+        `  rawText: "${job.data.rawText}"`,
+    );
   }
 }

@@ -6,7 +6,12 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', '.dependency-cruiser.js', 'scripts/loadtest.js'],
+    ignores: [
+      'eslint.config.mjs',
+      '.dependency-cruiser.js',
+      'scripts/loadtest.js',
+      'scripts/loadtest-queue.js',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

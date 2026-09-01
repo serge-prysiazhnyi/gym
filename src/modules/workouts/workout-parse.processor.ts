@@ -16,7 +16,7 @@ interface ParseJobData {
   idempotencyKey: string;
 }
 
-const CONCURRENCY_NUMBER = 50;
+const CONCURRENCY_NUMBER = 125;
 
 @Processor(WORKOUT_PARSE_QUEUE, { concurrency: CONCURRENCY_NUMBER })
 export class WorkoutParseProcessor extends WorkerHost {

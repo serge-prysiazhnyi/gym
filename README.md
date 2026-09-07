@@ -116,6 +116,23 @@ pnpm start:dev
 
 The API runs on port 3000. Grafana is on 3001, Prometheus on 9090, and the queue admin UI at `/admin/queues` (development only).
 
+### Production
+
+`docker-compose.prod.yml` builds the API image and runs the full stack. All published
+ports are bound to `127.0.0.1` rather than `0.0.0.0`, because Docker writes its own
+iptables rules ahead of UFW — a plain `3000:3000` mapping is reachable from the public
+internet even when the firewall says the port is blocked.
+
+As a result, nothing is exposed externally by the compose file itself:
+
+- **API (3000)** — put a TLS-terminating reverse proxy (nginx / Caddy / Traefik) on the
+  host, listening on 80/443 and forwarding to `127.0.0.1:3000`.
+- **Grafana (3001)** and **Prometheus (9090)** — reach over an SSH tunnel
+  (`ssh -L 9090:localhost:9090 <vps>`) or through the reverse proxy with auth. Prometheus
+  has no authentication of its own.
+- **Postgres** and **Redis** have no published ports and stay on the internal Docker
+  network.
+
 ### Environment
 
 Required variables, validated with Joi at startup — the app refuses to boot if any are missing or malformed:

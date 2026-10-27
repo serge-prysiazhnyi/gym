@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Registry, collectDefaultMetrics, Gauge } from 'prom-client';
+import {
+  Registry,
+  collectDefaultMetrics,
+  Counter,
+  Gauge,
+  Histogram,
+} from 'prom-client';
 
 @Injectable()
 export class MetricsService {
@@ -61,6 +67,30 @@ export class MetricsService {
     name: 'queue_delayed',
     help: 'Jobs waiting for retry backoff',
     labelNames: ['queue'],
+    registers: [this.registry],
+  });
+
+  /** LLM provider calls, including repair turns and fallback attempts. */
+  readonly llmRequests = new Counter({
+    name: 'llm_requests_total',
+    help: 'LLM provider calls by outcome',
+    labelNames: ['provider', 'model', 'outcome'],
+    registers: [this.registry],
+  });
+
+  readonly llmRequestDuration = new Histogram({
+    name: 'llm_request_duration_seconds',
+    help: 'LLM provider call latency',
+    labelNames: ['provider', 'model'],
+    buckets: [0.5, 1, 2, 4, 8, 15, 30],
+    registers: [this.registry],
+  });
+
+  /** Tokens billed by the provider; the main cost driver. */
+  readonly llmTokens = new Counter({
+    name: 'llm_tokens_total',
+    help: 'LLM tokens consumed',
+    labelNames: ['direction'],
     registers: [this.registry],
   });
 

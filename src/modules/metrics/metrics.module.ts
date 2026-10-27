@@ -8,5 +8,6 @@ import { WORKOUT_PARSE_QUEUE } from '../queue';
   imports: [BullModule.registerQueue({ name: WORKOUT_PARSE_QUEUE })],
   controllers: [MetricsController],
   providers: [MetricsService],
+  exports: [MetricsService],
 })
 export class MetricsModule {}

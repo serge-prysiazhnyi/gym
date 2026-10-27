@@ -110,14 +110,16 @@ Every step below can be merged on its own and leaves the app working. Run `pnpm 
   - `workout-parser.service.spec.ts` with a fake `LlmClient`: valid JSON, fenced JSON, repair, `not_a_workout`, `UNKNOWN`, error kinds.
   - `openai-compatible.client.spec.ts`: maps HTTP statuses to `LlmError.kind`.
 
+**Extensibility (added after review):** set shapes live in a registry, `src/modules/llm/set-types/` (`strength` only for now). Each type defines its zod set schema, prompt rules, reply shape and normalisation. The reply schema is a union of one exercise variant per type present in the catalogue (`type` + names of that type + that type's sets) plus `{ type: 'unknown', name: 'UNKNOWN' }`. To add a type (e.g. cardio): add `<name>.set-type.ts`, register it in `set-types/index.ts`, then handle the compile error in `toWorkoutSets` (processor). Prompt, schema and parser need no changes.
+
 ## Step 2: Processor uses the catalogue + input validation
 
 **Goal:** only workout-like text reaches the LLM, and its output is restricted to known exercises.
 
-- `ExercisesService.getCatalogue()`: returns a `name → id` map, cached in Redis (same pattern as muscle-groups) and invalidated in `create()`.
+- `ExercisesService.getCatalogue()`: returns `{ id, name, setType }[]`, cached in Redis (same pattern as muscle-groups) and invalidated in `create()`. Exercises have no type column yet, so `setType` is `'strength'` for all of them; the column comes with the cardio work.
 - `WorkoutParseProcessor`:
-  - Passes the catalogue names to the parser and maps names → ids from the map. This removes the N+1 `findByName` loop.
-  - Converts sets into `CreateWorkoutSetDto` with sequential `setNumber`.
+  - Passes the catalogue (`{ name, setType }`) to the parser and maps names → ids from it. This removes the N+1 `findByName` loop and the temporary `findAll(1, 1000)`.
+  - Converts sets into `CreateWorkoutSetDto` with sequential `setNumber` via the existing exhaustive `toWorkoutSets` switch.
   - `rejected` outcomes, schema failures and permanent errors throw `UnrecoverableError` with a user-safe code: `NOT_A_WORKOUT`, `UNRECOGNIZED_EXERCISES`, `PARSE_FAILED` or `LLM_UNAVAILABLE`.
   - Transient errors throw a normal error, so BullMQ retries them.
   - Lower `CONCURRENCY_NUMBER` from 125 to about 20 and add a worker `limiter: { max: 20, duration: 1000 }`.

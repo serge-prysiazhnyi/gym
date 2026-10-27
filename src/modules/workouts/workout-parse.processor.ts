@@ -5,7 +5,7 @@ import { Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { WORKOUT_PARSE_QUEUE } from '../queue/';
 import { LLM_SERVICE } from '../llm';
-import type { LlmService } from '../llm';
+import type { LlmService, ParsedExercise } from '../llm';
 import { ExercisesService } from '../exercises';
 import { WorkoutsService } from './workouts.service';
 import { CreateWorkoutSetDto } from './dto/workout.dto';
@@ -17,6 +17,31 @@ interface ParseJobData {
 }
 
 const CONCURRENCY_NUMBER = 125;
+
+/**
+ * Maps parsed sets to the DTO for their workout type. The `never` check makes
+ * a newly registered set type fail to compile here until it is handled.
+ */
+function toWorkoutSets(
+  exercise: ParsedExercise,
+  exerciseId: string,
+): CreateWorkoutSetDto[] {
+  switch (exercise.type) {
+    case 'strength':
+      return exercise.sets.map((s, i) => ({
+        exerciseId,
+        setNumber: i + 1,
+        reps: s.reps,
+        weightKg: s.weightKg ?? undefined,
+      }));
+    default: {
+      const unhandled: never = exercise.type;
+      throw new UnrecoverableError(
+        `Unsupported set type: ${String(unhandled)}`,
+      );
+    }
+  }
+}
 
 @Processor(WORKOUT_PARSE_QUEUE, { concurrency: CONCURRENCY_NUMBER })
 export class WorkoutParseProcessor extends WorkerHost {
@@ -40,28 +65,44 @@ export class WorkoutParseProcessor extends WorkerHost {
       return { workoutId: existing.id };
     }
 
-    const parsed = await this.llm.parseWorkout(rawText);
+    // The catalogue constrains the model's output to exercises we can save.
+    // Exercises have no type column yet, so every entry is strength.
+    const catalogue = await this.exercises.findAll(1, 1000);
+    const outcome = await this.llm.parseWorkout(rawText, {
+      catalogue: catalogue.data.map((e) => ({
+        name: e.name,
+        setType: 'strength' as const,
+      })),
+      now: new Date(),
+    });
+
+    if (outcome.kind === 'rejected') {
+      throw new UnrecoverableError(`Parse rejected: ${outcome.reason}`);
+    }
+    const parsed = outcome.workout;
 
     // Resolve names → ids
     const sets: CreateWorkoutSetDto[] = [];
-    for (const s of parsed.sets) {
-      const exercise = await this.exercises.findByName(s.exerciseName);
+    for (const e of parsed.exercises) {
+      const exercise = await this.exercises.findByName(e.name);
 
       if (!exercise) {
-        throw new UnrecoverableError(`Unknown exercise: "${s.exerciseName}"`);
+        throw new UnrecoverableError(`Unknown exercise: "${e.name}"`);
       }
 
-      sets.push({
-        exerciseId: exercise.id,
-        setNumber: s.setNumber,
-        reps: s.reps,
-        weightKg: s.weightKg ?? undefined,
-      });
+      sets.push(...toWorkoutSets(e, exercise.id));
     }
 
     const workout = await this.workouts.create(
       userId,
-      { rawText, sets },
+      {
+        rawText,
+        sets,
+        performedAt: parsed.performedAt ?? undefined,
+        durationSeconds: parsed.durationMinutes
+          ? parsed.durationMinutes * 60
+          : undefined,
+      },
       idempotencyKey,
     );
     this.logger.log(`Job ${job.id}: ✨ created workout ✨ ${workout.id}`);

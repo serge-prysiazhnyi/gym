@@ -1,21 +1,34 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import Redis from 'ioredis';
 
 import { Exercise } from './exercise.entity';
 import { MuscleGroupsService } from '../muscle-groups';
 import { CreateExerciseDto } from './dto/create-exercise.dto';
+import { REDIS_CLIENT } from '../redis';
+
+const CATALOGUE_CACHE_KEY = 'exercises:catalogue';
+const CATALOGUE_CACHE_TTL = 3600; // 1 hour — invalidated on create anyway
+
+/** Minimal view of an exercise for matching free text against the catalogue. */
+export interface CatalogueEntry {
+  id: string;
+  name: string;
+}
 
 @Injectable()
 export class ExercisesService {
   constructor(
     @InjectRepository(Exercise) private readonly repo: Repository<Exercise>,
     private readonly muscleGroups: MuscleGroupsService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   async findAll(page = 1, limit = 20) {
@@ -66,7 +79,33 @@ export class ExercisesService {
       imageUrl: dto.imageUrl ?? null,
     });
 
-    return this.repo.save(exercise);
+    const saved = await this.repo.save(exercise);
+    await this.redis.del(CATALOGUE_CACHE_KEY);
+    return saved;
+  }
+
+  /**
+   * Every exercise as `{ id, name }`, cached in Redis.
+   *
+   * The AI parser restricts the model to these names and maps them back to
+   * ids, so one cached read replaces a `findByName` query per exercise.
+   */
+  async getCatalogue(): Promise<CatalogueEntry[]> {
+    const cached = await this.redis.get(CATALOGUE_CACHE_KEY);
+    if (cached) return JSON.parse(cached) as CatalogueEntry[];
+
+    const catalogue = await this.repo.find({
+      select: { id: true, name: true },
+      order: { name: 'ASC' },
+    });
+
+    await this.redis.set(
+      CATALOGUE_CACHE_KEY,
+      JSON.stringify(catalogue),
+      'EX',
+      CATALOGUE_CACHE_TTL,
+    );
+    return catalogue;
   }
 
   /**

@@ -116,9 +116,9 @@ Every step below can be merged on its own and leaves the app working. Run `pnpm 
 
 **Goal:** only workout-like text reaches the LLM, and its output is restricted to known exercises.
 
-- `ExercisesService.getCatalogue()`: returns `{ id, name, setType }[]`, cached in Redis (same pattern as muscle-groups) and invalidated in `create()`. Exercises have no type column yet, so `setType` is `'strength'` for all of them; the column comes with the cardio work.
+- `ExercisesService.getCatalogue()`: returns `{ id, name }[]`, cached in Redis (`exercises:catalogue`, 1h, same pattern as muscle-groups) and invalidated in `create()`. Exercises have no type column yet, so the processor tags every entry `setType: 'strength'`; when the column arrives with the cardio work, add it to the catalogue and drop that line.
 - `WorkoutParseProcessor`:
-  - Passes the catalogue (`{ name, setType }`) to the parser and maps names → ids from it. This removes the N+1 `findByName` loop and the temporary `findAll(1, 1000)`.
+  - Passes the catalogue (as `{ name, setType }`) to the parser and maps names → ids from it. This removes the N+1 `findByName` loop and the temporary `findAll(1, 1000)`.
   - Converts sets into `CreateWorkoutSetDto` with sequential `setNumber` via the existing exhaustive `toWorkoutSets` switch.
   - `rejected` outcomes, schema failures and permanent errors throw `UnrecoverableError` with a user-safe code: `NOT_A_WORKOUT`, `UNRECOGNIZED_EXERCISES`, `PARSE_FAILED` or `LLM_UNAVAILABLE`.
   - Transient errors throw a normal error, so BullMQ retries them.

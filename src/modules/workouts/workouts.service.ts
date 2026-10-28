@@ -17,6 +17,10 @@ import { ExercisesService } from '../exercises';
 import { InjectQueue } from '@nestjs/bullmq';
 import { WORKOUT_PARSE_QUEUE } from '../queue';
 import { Queue, randomUUID } from 'bullmq';
+import {
+  INPUT_REJECTION_MESSAGES,
+  validateWorkoutInput,
+} from './workout-input.validator';
 
 @Injectable()
 export class WorkoutsService {
@@ -225,9 +229,21 @@ export class WorkoutsService {
     if (result.affected === 0) throw new NotFoundException('Set not found');
   }
 
+  /**
+   * Queue free text for AI parsing.
+   *
+   * The pre-filter rejects junk and injection attempts here, synchronously,
+   * so they cost nothing and the user can fix the text right away.
+   */
   async requestParse(userId: string, rawText: string) {
-    if (!rawText.trim()) {
-      throw new BadRequestException('Invalid workout text');
+    const check = validateWorkoutInput(rawText);
+    if (!check.ok) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'INVALID_INPUT',
+        message: INPUT_REJECTION_MESSAGES[check.reason],
+      });
     }
 
     const idempotencyKey = randomUUID();

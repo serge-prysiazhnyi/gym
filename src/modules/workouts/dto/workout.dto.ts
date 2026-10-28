@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
@@ -9,9 +9,12 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
+import { sanitizeWorkoutText } from '../workout-input.validator';
 
 export class CreateWorkoutSetDto {
   @IsUUID()
@@ -95,6 +98,13 @@ export class UpdateWorkoutSetDto {
 }
 
 export class ParseWorkoutDto {
+  // Sanitised before the length checks, so invisible characters can't pad
+  // the text past the minimum or hide instructions from the pre-filter.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? sanitizeWorkoutText(value) : value,
+  )
   @IsString()
+  @MinLength(10)
+  @MaxLength(2000)
   rawText!: string;
 }
